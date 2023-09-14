@@ -21,6 +21,7 @@ const (
 	CONTENT_TYPE_JSON_UTF8       = "application/json;charset=UTF-8"
 	CONTENT_TYPE_JAVASCRIPT_UTF8 = "application/javascript;charset=UTF-8"
 	CONTENT_TYPE_HTML_UTF8       = "text/html;charset=UTF-8"
+	CONTENT_TYPE_PLAIN_UTF8      = "text/plain;charset=UTF-8"
 )
 
 // 输出标准json格式的数据
