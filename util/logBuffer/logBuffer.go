@@ -23,6 +23,7 @@ type Buffer struct {
 	isError     bool
 	printStack  bool
 	runtimeSkip *int
+	tag         string
 }
 
 func (p *Buffer) String() string {
@@ -45,6 +46,15 @@ func (p *Buffer) SetPrintStack(printStack bool) *Buffer {
 
 func (p *Buffer) PrintStack() bool {
 	return p.printStack
+}
+
+func (p *Buffer) SetTag(tag string) *Buffer {
+	p.tag = tag
+	return p
+}
+
+func (p *Buffer) Tag() string {
+	return p.tag
 }
 
 func (p *Buffer) SetRuntimeSkip(skip int) *Buffer {

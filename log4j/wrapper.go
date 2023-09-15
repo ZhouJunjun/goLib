@@ -39,23 +39,15 @@ type LogBuffer interface {
 	String() string
 	PrintStack() bool
 	RuntimeSkip(defaultSkip int) int
+	Tag() string
 }
 
 func Log(logBuffer LogBuffer) {
 	logTxt, skip := logBuffer.String(), logBuffer.RuntimeSkip(defaultRuntimeSkip)
 	if logBuffer.IsError() {
-		globalHandler.addLogString(skip, ERROR, logBuffer.PrintStack(), "", logTxt)
+		globalHandler.addLogString(skip, ERROR, logBuffer.PrintStack(), logBuffer.Tag(), logTxt)
 	} else {
-		globalHandler.addLogString(skip, INFO, false, "", logTxt)
-	}
-}
-
-func LogTag(tag string, logBuffer LogBuffer) {
-	logTxt, skip := logBuffer.String(), logBuffer.RuntimeSkip(defaultRuntimeSkip)
-	if logBuffer.IsError() {
-		globalHandler.addLogString(skip, ERROR, logBuffer.PrintStack(), tag, logTxt)
-	} else {
-		globalHandler.addLogString(skip, INFO, false, tag, logTxt)
+		globalHandler.addLogString(skip, INFO, false, logBuffer.Tag(), logTxt)
 	}
 }
 
