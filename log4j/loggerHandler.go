@@ -1,6 +1,7 @@
 package log4j
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -20,7 +21,7 @@ type loggerHandler struct {
 	defaultLogFilePath string
 }
 
-func newDefaultLogger(lvl level) *loggerHandler {
+func newDefaultLogger(lvl Level) *loggerHandler {
 	return &loggerHandler{
 		lock: sync.RWMutex{},
 		logWriterMap: map[string]logWriter{
@@ -59,7 +60,7 @@ func (p *loggerHandler) getLogWriterMap() map[string]logWriter {
 	return p.logWriterMap
 }
 
-func (p *loggerHandler) addLogString(runtimeSkip int, lvl level, withStack bool, tag string, format string, args ...interface{}) {
+func (p *loggerHandler) addLogString(runtimeSkip int, lvl Level, withStack bool, tag string, format string, args ...interface{}) {
 
 	src, msg := getSrcAndMsg(runtimeSkip, withStack, format, args...)
 
@@ -70,31 +71,55 @@ func (p *loggerHandler) addLogString(runtimeSkip int, lvl level, withStack bool,
 		Message: msg,
 	}
 
-	logWriterMap, isPrinted := p.getLogWriterMap(), false
-	for tagName, logWriter := range logWriterMap {
-		if lvl >= logWriter.GetLevel() {
-			if tag == "" && !logWriter.IsPrivate() {
-				logWriter.LogWrite(rec)
-				isPrinted = true
-			}
-			if tag != "" && tag == tagName {
-				logWriter.LogWrite(rec)
-				isPrinted = true
+	p.print(rec, lvl, tag)
+}
+
+func (p *loggerHandler) print(rec *logRecord, lvl Level, tag string) {
+	logWriterMap := p.getLogWriterMap()
+
+	// 指定tag 且 对应的tag文件存在且私有, 只写私有
+	if tag != "" {
+		for tagName, logWriter := range logWriterMap {
+			if tagName == tag && logWriter.IsPrivate() {
+				if lvl >= logWriter.GetLevel() {
+					logWriter.LogWrite(rec)
+				}
+				return
 			}
 		}
 	}
 
-	if !isPrinted && tag != "" {
-		if lvl <= INFO {
+	isPrinted := false
+	for _, logWriter := range logWriterMap {
+		if lvl >= logWriter.GetLevel() && !logWriter.IsPrivate() {
+			logWriter.LogWrite(rec)
+			isPrinted = true
+		}
+	}
+
+	/*for tagName, logWriter := range logWriterMap {
+	    if lvl >= logWriter.GetLevel() {
+	        if tag == "" && !logWriter.IsPrivate() {
+	            logWriter.LogWrite(rec)
+	            isPrinted = true
+	        }
+	        if tag != "" && tag == tagName {
+	            logWriter.LogWrite(rec)
+	            isPrinted = true
+	        }
+	    }
+	}*/
+
+	if !isPrinted {
+		if lvl == INFO {
 			_, _ = fmt.Fprintf(os.Stdout, formatLogRecord(defaultFormat, rec))
-		} else {
+		} else if lvl > INFO {
 			_, _ = fmt.Fprintf(os.Stderr, formatLogRecord(defaultFormat, rec))
 		}
 	}
 }
 
-func (p *loggerHandler) addLogFunc(lvl level, withStack bool, tag string, logString string, src string) {
-
+func (p *loggerHandler) addLogFunc(lvl Level, withStack bool, tag string, logString string, src string) {
 	rec := &logRecord{
 		Level:   lvl,
 		Created: time.Now(),
@@ -102,52 +127,11 @@ func (p *loggerHandler) addLogFunc(lvl level, withStack bool, tag string, logStr
 		Message: logString,
 	}
 
-	logWriterMap, isPrinted := p.getLogWriterMap(), false
-	for tagName, logWriter := range logWriterMap {
-		if lvl >= logWriter.GetLevel() {
-			if tag == "" && !logWriter.IsPrivate() {
-				logWriter.LogWrite(rec)
-				isPrinted = true
-			}
-			if tag != "" && tag == tagName {
-				logWriter.LogWrite(rec)
-				isPrinted = true
-			}
-		}
-	}
-
-	if !isPrinted {
-		if lvl <= INFO {
-			_, _ = fmt.Fprintf(os.Stdout, formatLogRecord(defaultFormat, rec))
-		} else {
-			_, _ = fmt.Fprintf(os.Stderr, formatLogRecord(defaultFormat, rec))
-		}
-	}
+	p.print(rec, lvl, tag)
 }
 
-func (p *loggerHandler) addEmptyLine(lvl level, tag string) {
-
-	logWriterMap, isPrinted := p.getLogWriterMap(), false
-	for tagName, logWriter := range logWriterMap {
-		if lvl >= logWriter.GetLevel() {
-			if tag == "" && !logWriter.IsPrivate() {
-				logWriter.LogWrite(nil)
-				isPrinted = true
-			}
-			if tag != "" && tag == tagName {
-				logWriter.LogWrite(nil)
-				isPrinted = true
-			}
-		}
-	}
-
-	if !isPrinted && tag != "" {
-		if lvl <= INFO {
-			_, _ = fmt.Fprintf(os.Stdout, formatLogRecord(defaultFormat, nil))
-		} else {
-			_, _ = fmt.Fprintf(os.Stderr, formatLogRecord(defaultFormat, nil))
-		}
-	}
+func (p *loggerHandler) addEmptyLine(lvl Level, tag string) {
+	p.print(nil, lvl, tag)
 }
 
 // Load XML configuration
@@ -206,7 +190,7 @@ func (p *loggerHandler) loadConfiguration(filename string) {
 			os.Exit(1)
 		}
 
-		var lvl level
+		var lvl Level
 		switch xmlFilter.Level {
 		case "DEBUG":
 			lvl = DEBUG
@@ -246,7 +230,7 @@ func (p *loggerHandler) loadConfiguration(filename string) {
 	}
 }
 
-func (p *loggerHandler) addFileLoggerIfNotExist(tag string, lv level, prop *LogProperty) (isExist bool) {
+func (p *loggerHandler) addFileLoggerIfNotExist(tag string, lv Level, prop *LogProperty) (isExist bool) {
 
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -277,35 +261,39 @@ func getSrcAndMsg(runtimeSkip int, withStack bool, format string, args ...interf
 		src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
 	}
 
-	msg := format
-	if args != nil && len(args) > 0 {
-		msg = fmt.Sprintf(format, args...)
+	msg := bytes.Buffer{}
+	if len(args) > 0 {
+		msg.WriteString(fmt.Sprintf(format, args...))
+	} else {
+		msg.WriteString(format)
 	}
 
-	// Add stack
+	// 堆栈信息
 	if withStack {
 		const size = 64 << 10
 		buf := make([]byte, size)
 		buf = buf[:runtime.Stack(buf, false)]
 
-		// remove log4j package
-		stack := strings.Split(string(buf), "\n")
-		stackSlice, i := make([]string, len(stack)), 0
-		for _, rows := range stack {
-			if !strings.Contains(rows, "/log4j/") && !strings.Contains(rows, "/log4j.") {
-				stackSlice[i] = rows
-				i++
+		msg.WriteByte('\n')
+		if runtimeSkip <= 0 {
+			msg.Write(buf) // 不跳过
+		} else {
+			// 第一行为goroutine标识，从第2行起，每2行是一个层级信息
+			stack := strings.Split(string(buf), "\n")
+			if stackLine := len(stack); stackLine > runtimeSkip*2+1 {
+				newStack := make([]string, stackLine-runtimeSkip*2)
+				newStack[0] = stack[0]
+				copy(newStack[1:], stack[1+runtimeSkip*2:])
+				msg.WriteString(strings.Join(newStack, "\n"))
+			} else {
+				msg.Write(buf) // should not happen
 			}
 		}
-		stackSlice = stackSlice[:i]
-
-		msg += "\n" + strings.Join(stackSlice, "\n")
 	}
-
-	return src, msg
+	return src, msg.String()
 }
 
-func xmlToConsoleLogWriter(lvl level, props []xmlProperty) (*ConsoleLogWriter, error) {
+func xmlToConsoleLogWriter(lvl Level, props []xmlProperty) (*ConsoleLogWriter, error) {
 
 	format := "[%D %T] [%L] (%S) %M"
 
@@ -343,7 +331,7 @@ func strToNumSuffix(str string, multiple int) int {
 	return parsed * num
 }
 
-func xmlToFileLogWriter(tag string, lvl level, props []xmlProperty) (*FileLogWriter, error) {
+func xmlToFileLogWriter(tag string, lvl Level, props []xmlProperty) (*FileLogWriter, error) {
 
 	file := ""
 	format := "[%D %T] [%L] (%S) %M"

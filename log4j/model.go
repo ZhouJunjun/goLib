@@ -1,3 +1,7 @@
+/**
+ * @author junjunzhou
+ * @date 2023/1/10
+ */
 package log4j
 
 import (
@@ -16,7 +20,7 @@ type LogProperty struct {
 }
 
 type logRecord struct {
-	Level   level     // The log level
+	Level   Level     // The log level
 	Created time.Time // The time at which the log message was created (nanoseconds)
 	Source  string    // The message source
 	Message string    // The log message
@@ -26,7 +30,7 @@ type logWriter interface {
 	LogWrite(rec *logRecord)
 	Close()
 	IsPrivate() bool
-	GetLevel() level
+	GetLevel() Level
 }
 
 type xmlProperty struct {

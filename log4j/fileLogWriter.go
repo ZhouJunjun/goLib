@@ -1,3 +1,5 @@
+// Copyright (C) 2010, Kyle Lemons <kyle@kylelemons.net>.  All rights reserved.
+
 package log4j
 
 import (
@@ -10,7 +12,7 @@ import (
 
 // This log writer sends output to a file
 type FileLogWriter struct {
-	level level
+	level Level
 	tag   string
 
 	logRecordCh chan *logRecord
@@ -48,7 +50,7 @@ type FileLogWriter struct {
 	keepDay int64
 }
 
-func NewFileLogWriter(tag string, level level, filename string, rotate bool, keepDay int64) (*FileLogWriter, error) {
+func NewFileLogWriter(tag string, level Level, filename string, rotate bool, keepDay int64) (*FileLogWriter, error) {
 	writer := &FileLogWriter{
 		tag:         tag,
 		level:       level,
@@ -257,7 +259,7 @@ func (w *FileLogWriter) IsPrivate() bool {
 	return w.private
 }
 
-func (w *FileLogWriter) GetLevel() level {
+func (w *FileLogWriter) GetLevel() Level {
 	return w.level
 }
 
