@@ -2,16 +2,27 @@ package webUtil
 
 import (
 	"compress/gzip"
+	"io"
 	"net/http"
+	"sync"
 )
+
+var gzipWriterPool = sync.Pool{
+	New: func() interface{} {
+		return gzip.NewWriter(io.Discard) // 不用io.Discard，使用的时候reset
+	},
+}
 
 func NewGZipWriter(writer http.ResponseWriter) *gzipWriter {
 	writer.Header().Set("Content-Encoding", "gzip")
 	// log4j.Info("new gzip writer")
-	return &gzipWriter{
+	rw := &gzipWriter{
 		originWriter: writer,
-		gzipWriter:   gzip.NewWriter(writer),
 	}
+
+	rw.gzipWriter = gzipWriterPool.Get().(*gzip.Writer)
+	rw.gzipWriter.Reset(writer)
+	return rw
 }
 
 type gzipWriter struct {
@@ -33,5 +44,10 @@ func (p *gzipWriter) WriteHeader(statusCode int) {
 
 func (p *gzipWriter) Close() error {
 	// log4j.Info("close gzip writer")
-	return p.gzipWriter.Close()
+	if err := p.gzipWriter.Close(); err != nil { // close，确保缓冲区flush
+		return err
+	} else {
+		gzipWriterPool.Put(p.gzipWriter) // 放回池中
+		return nil
+	}
 }
