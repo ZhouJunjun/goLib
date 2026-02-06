@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-var gzipWriterPool = sync.Pool{
+var GzipWriterPool = sync.Pool{
 	New: func() interface{} {
 		return gzip.NewWriter(io.Discard) // 不用io.Discard，使用的时候reset
 	},
@@ -20,7 +20,7 @@ func NewGZipWriter(writer http.ResponseWriter) *gzipWriter {
 		originWriter: writer,
 	}
 
-	rw.gzipWriter = gzipWriterPool.Get().(*gzip.Writer)
+	rw.gzipWriter = GzipWriterPool.Get().(*gzip.Writer)
 	rw.gzipWriter.Reset(writer)
 	return rw
 }
@@ -47,7 +47,7 @@ func (p *gzipWriter) Close() error {
 	if err := p.gzipWriter.Close(); err != nil { // close，确保缓冲区flush
 		return err
 	} else {
-		gzipWriterPool.Put(p.gzipWriter) // 放回池中
+		GzipWriterPool.Put(p.gzipWriter) // 放回池中
 		return nil
 	}
 }
