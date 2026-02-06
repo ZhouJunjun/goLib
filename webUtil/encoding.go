@@ -2,13 +2,12 @@ package webUtil
 
 import (
 	"compress/gzip"
-	"github.com/ZhouJunjun/goLib/log4j"
 	"net/http"
 )
 
 func NewGZipWriter(writer http.ResponseWriter) *gzipWriter {
 	writer.Header().Set("Content-Encoding", "gzip")
-	log4j.Info("new gzip writer")
+	// log4j.Info("new gzip writer")
 	return &gzipWriter{
 		originWriter: writer,
 		gzipWriter:   gzip.NewWriter(writer),
@@ -33,6 +32,6 @@ func (p *gzipWriter) WriteHeader(statusCode int) {
 }
 
 func (p *gzipWriter) Close() error {
-	log4j.Info("close gzip writer")
+	// log4j.Info("close gzip writer")
 	return p.gzipWriter.Close()
 }
