@@ -112,9 +112,9 @@ func (p *loggerHandler) print(rec *logRecord, lvl Level, tag string) {
 
 	if !isPrinted {
 		if lvl == INFO {
-			_, _ = fmt.Fprintf(os.Stdout, formatLogRecord(defaultFormat, rec))
+			_, _ = fPrintFormatLog(os.Stdout, defaultFormat, rec)
 		} else if lvl > INFO {
-			_, _ = fmt.Fprintf(os.Stderr, formatLogRecord(defaultFormat, rec))
+			_, _ = fPrintFormatLog(os.Stderr, defaultFormat, rec)
 		}
 	}
 }
@@ -252,6 +252,8 @@ func (p *loggerHandler) addFileLoggerIfNotExist(tag string, lv Level, prop *LogP
 	}
 }
 
+var newLine = []byte("\n")
+
 func getSrcAndMsg(runtimeSkip int, withStack bool, format string, args ...interface{}) (string, string) {
 
 	// Determine caller func
@@ -261,7 +263,10 @@ func getSrcAndMsg(runtimeSkip int, withStack bool, format string, args ...interf
 		src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
 	}
 
-	msg := bytes.Buffer{}
+	msg := bytesBufferPool.Get().(*bytes.Buffer)
+	msg.Reset()
+	defer bytesBufferPool.Put(msg)
+
 	if len(args) > 0 {
 		msg.WriteString(fmt.Sprintf(format, args...))
 	} else {
@@ -270,23 +275,25 @@ func getSrcAndMsg(runtimeSkip int, withStack bool, format string, args ...interf
 
 	// 堆栈信息
 	if withStack {
-		const size = 64 << 10
-		buf := make([]byte, size)
-		buf = buf[:runtime.Stack(buf, false)]
+		bs := bytesPool.Get().([]byte)
+		defer bytesPool.Put(bs)
+
+		stackBs := bs[:runtime.Stack(bs, false)]
 
 		msg.WriteByte('\n')
 		if runtimeSkip <= 0 {
-			msg.Write(buf) // 不跳过
+			msg.Write(stackBs) // 不跳过
 		} else {
 			// 第一行为goroutine标识，从第2行起，每2行是一个层级信息
-			stack := strings.Split(string(buf), "\n")
-			if stackLine := len(stack); stackLine > runtimeSkip*2+1 {
-				newStack := make([]string, stackLine-runtimeSkip*2)
-				newStack[0] = stack[0]
-				copy(newStack[1:], stack[1+runtimeSkip*2:])
-				msg.WriteString(strings.Join(newStack, "\n"))
+			lineSlice := bytes.Split(stackBs, newLine)
+			if size := len(lineSlice); size > runtimeSkip*2+1 {
+				msg.Write(lineSlice[0])
+				for i := 1 + runtimeSkip*2; i < size; i++ {
+					msg.WriteByte('\n')
+					msg.Write(lineSlice[i])
+				}
 			} else {
-				msg.Write(buf) // should not happen
+				msg.Write(stackBs) // should not happen
 			}
 		}
 	}

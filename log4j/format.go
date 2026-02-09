@@ -3,31 +3,30 @@ package log4j
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
-	"sync"
 )
 
-var (
-	// 复用bytesBuffer, 避免频繁分配内存
-	bytesBufferPool = sync.Pool{
-		New: func() interface{} {
-			return bytes.NewBuffer(make([]byte, 0, 64))
-		},
-	}
-)
+func fPrintFormatLog(w io.Writer, format string, rec *logRecord) (int, error) {
 
-func formatLogRecord(format string, rec *logRecord) string {
-	if rec == nil {
-		return "\n"
-	}
-	if len(format) == 0 {
-		return ""
-	}
-
-	// out := bytes.NewBuffer(make([]byte, 0, 64))
 	out := bytesBufferPool.Get().(*bytes.Buffer)
 	out.Reset()
 	defer bytesBufferPool.Put(out)
+
+	formatLogRecord(out, format, rec)
+	return fmt.Fprint(w, out.Bytes())
+}
+
+func formatLogRecord(out *bytes.Buffer, format string, rec *logRecord) {
+	if rec == nil {
+		out.WriteString("\n")
+		return
+	}
+	if len(format) == 0 {
+		return
+	}
+
+	// out := bytes.NewBuffer(make([]byte, 0, 64))
 
 	// Split the string into pieces by % signs
 	pieces := bytes.Split([]byte(format), []byte{'%'})
@@ -73,6 +72,4 @@ func formatLogRecord(format string, rec *logRecord) string {
 		}
 	}
 	out.WriteByte('\n')
-
-	return out.String()
 }

@@ -88,7 +88,7 @@ func (w *FileLogWriter) Close() {
 	close(w.logRecordCh)
 	printlnIO(os.Stdout, "INFO", "fileLogWriter[%s] closed log channel", w.tag)
 
-	<-w.closeCh //等待 writeLog() 将日志全部写完后return
+	<-w.closeCh // 等待 writeLog() 将日志全部写完后return
 	printlnIO(os.Stdout, "INFO", "fileLogWriter[%s] is closed", w.tag)
 }
 
@@ -117,10 +117,10 @@ func (w *FileLogWriter) writeLog() {
 		// 写入日志
 		size, err := 0, error(nil)
 		if w.file != nil {
-			size, err = fmt.Fprint(w.file, formatLogRecord(w.format, logRecord))
+			size, err = fPrintFormatLog(w.file, w.format, logRecord)
 		} else {
 			// 程序启动后file是不为空的(执行openFile()失败,主程序会启动失败)；如果运行中file为空，可能是切割日志时关闭了file又无法重新打开
-			size, err = fmt.Fprint(os.Stdout, formatLogRecord(w.format, logRecord))
+			size, err = fPrintFormatLog(os.Stdout, w.format, logRecord)
 		}
 
 		if err != nil {
@@ -177,7 +177,7 @@ func (w *FileLogWriter) tryMoveFile() {
 
 	// 检查文件是否存在
 	if isExist := w.isFileExist(w.filename); !isExist {
-		return //should not happen
+		return // should not happen
 	}
 
 	for i := 0; i <= 999; i++ {
@@ -238,7 +238,7 @@ func (w *FileLogWriter) delFile() {
 				if !file.IsDir() && file.ModTime().Unix()+86400*w.keepDay < timeNow {
 
 					filePath := path + "/" + file.Name()
-					if filePath == w.filename { //正在打的日志不删
+					if filePath == w.filename { // 正在打的日志不删
 						continue
 					}
 

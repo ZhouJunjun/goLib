@@ -3,7 +3,6 @@
 package log4j
 
 import (
-	"fmt"
 	"io"
 	"os"
 )
@@ -32,7 +31,7 @@ func NewConsoleLogWriter(level Level) *ConsoleLogWriter {
 
 func (p *ConsoleLogWriter) run(out io.Writer) {
 	for rec := range p.rec {
-		_, _ = fmt.Fprint(out, formatLogRecord(p.format, rec))
+		_, _ = fPrintFormatLog(out, p.format, rec)
 	}
 }
 

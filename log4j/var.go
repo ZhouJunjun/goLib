@@ -4,12 +4,28 @@
  */
 package log4j
 
+import (
+	"bytes"
+	"sync"
+)
+
 var (
-	// LogBufferLength specifies how many log messages a particular log4go
-	// logger can buffer at a time before writing them.
+	// 日志缓冲区长度, 设置成可导出, 如果有日志多, 可改大
 	LogBufferLength = 32
 
 	defaultFormat = "[%D %T] [%L] (%S) %M"
+
+	// 复用bytes.Buffer|[]byte, 避免频繁分配内存
+	bytesBufferPool = sync.Pool{
+		New: func() interface{} {
+			return bytes.NewBuffer(make([]byte, 0, 64))
+		},
+	}
+	bytesPool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, 64<<10)
+		},
+	}
 )
 
 type Level int
