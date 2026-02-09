@@ -35,7 +35,7 @@ func NewGZipWriter(writer http.ResponseWriter) *gzipWriter {
 
 	rw.gzipWriter = GzipWriterPool.Get().(*gzip.Writer)
 	rw.gzipWriter.Reset(writer)
-	log4j.Info("[%p] http get gzip writer", rw.gzipWriter)
+	// log4j.Info("[%p] http get gzip writer", rw.gzipWriter)
 	return rw
 }
 
@@ -62,7 +62,7 @@ func (p *gzipWriter) Close() error {
 		_ = log4j.Error("gzip writer close error: %s", err.Error())
 		return err
 	} else {
-		log4j.Info("[%p] http return gzip writer", p.gzipWriter)
+		// log4j.Info("[%p] http return gzip writer", p.gzipWriter)
 		GzipWriterPool.Put(p.gzipWriter) // 放回池中
 		return nil
 	}
