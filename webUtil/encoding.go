@@ -19,8 +19,10 @@ var GzipWriterPool = sync.Pool{
 
 func init() {
 	go func(num *int) {
-		log4j.Info("gzip writer num: %d", *num)
-		time.Sleep(time.Second * 10)
+		for {
+			log4j.Info("gzip writer num: %d", *num)
+			time.Sleep(time.Second * 10)
+		}
 	}(&writerNum)
 }
 
