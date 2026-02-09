@@ -2,15 +2,28 @@ package webUtil
 
 import (
 	"compress/gzip"
+	"github.com/ZhouJunjun/goLib/log4j"
 	"io"
 	"net/http"
 	"sync"
+	"time"
 )
 
+var writerNum = 0
 var GzipWriterPool = sync.Pool{
 	New: func() interface{} {
+		writerNum++
 		return gzip.NewWriter(io.Discard) // 不用io.Discard，使用的时候reset
 	},
+}
+
+func init() {
+	go func() {
+		if writerNum > 0 {
+			log4j.Info("gzip writer num: %d", writerNum)
+		}
+		time.Sleep(time.Minute)
+	}()
 }
 
 func NewGZipWriter(writer http.ResponseWriter) *gzipWriter {
