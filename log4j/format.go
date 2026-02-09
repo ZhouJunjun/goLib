@@ -1,20 +1,20 @@
-// Copyright (C) 2010, Kyle Lemons <kyle@kylelemons.net>.  All rights reserved.
-
 package log4j
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 )
 
-/*type formatCacheType struct {
-	LastUpdateSeconds    int64
-	shortTime, shortDate string
-	longTime, longDate   string
-}
-
-var formatCache = &formatCacheType{}*/
+var (
+	// 复用bytesBuffer, 避免频繁分配内存
+	bytesBufferPool = sync.Pool{
+		New: func() interface{} {
+			return bytes.NewBuffer(make([]byte, 0, 64))
+		},
+	}
+)
 
 func formatLogRecord(format string, rec *logRecord) string {
 	if rec == nil {
@@ -24,24 +24,10 @@ func formatLogRecord(format string, rec *logRecord) string {
 		return ""
 	}
 
-	out := bytes.NewBuffer(make([]byte, 0, 64))
-	/*secs := rec.Created.UnixNano() / 1e9
-	  cache := *formatCache
-	  if cache.LastUpdateSeconds != secs {
-	      month, day, year := rec.Created.Month(), rec.Created.Day(), rec.Created.Year()
-	      hour, minute, second := rec.Created.Hour(), rec.Created.Minute(), rec.Created.Second()
-	      zone, _ := rec.Created.Zone()
-	      ms := rec.Created.UnixNano() / 1e6 % 1000
-	      updated := &formatCacheType{
-	          LastUpdateSeconds: secs,
-	          shortTime:         fmt.Sprintf("%02d:%02d", hour, minute),
-	          shortDate:         fmt.Sprintf("%02d/%02d/%02d", month, day, year%100),
-	          longTime:          fmt.Sprintf("%02d:%02d:%02d.%03d %s", hour, minute, second, ms, zone),
-	          longDate:          fmt.Sprintf("%04d/%02d/%02d", year, month, day),
-	      }
-	      cache = *updated
-	      formatCache = updated
-	  }*/
+	// out := bytes.NewBuffer(make([]byte, 0, 64))
+	out := bytesBufferPool.Get().(*bytes.Buffer)
+	out.Reset()
+	defer bytesBufferPool.Put(out)
 
 	// Split the string into pieces by % signs
 	pieces := bytes.Split([]byte(format), []byte{'%'})
