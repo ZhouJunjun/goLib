@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+var (
+	sep = []byte{'%'}
+)
+
 func fPrintFormatLog(w io.Writer, format string, rec *logRecord) (int, error) {
 
 	out := bytesBufferPool.Get().(*bytes.Buffer)
@@ -14,7 +18,7 @@ func fPrintFormatLog(w io.Writer, format string, rec *logRecord) (int, error) {
 	defer bytesBufferPool.Put(out)
 
 	formatLogRecord(out, format, rec)
-	return fmt.Fprint(w, out.Bytes())
+	return w.Write(out.Bytes())
 }
 
 func formatLogRecord(out *bytes.Buffer, format string, rec *logRecord) {
@@ -29,7 +33,7 @@ func formatLogRecord(out *bytes.Buffer, format string, rec *logRecord) {
 	// out := bytes.NewBuffer(make([]byte, 0, 64))
 
 	// Split the string into pieces by % signs
-	pieces := bytes.Split([]byte(format), []byte{'%'})
+	pieces := bytes.Split([]byte(format), sep)
 
 	// Iterate over the pieces, replacing known formats
 	for i, piece := range pieces {
